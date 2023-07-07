@@ -34,7 +34,8 @@ NAMESPACE       := sales-system
 APP             := sales
 BASE_IMAGE_NAME := ardanlabs/service
 SERVICE_NAME    := sales-api
-VERSION         := 0.0.1
+#VERSION         := $(shell git rev-parse --short HEAD)
+VERSION			:= 1.0
 SERVICE_IMAGE   := $(BASE_IMAGE_NAME)/$(SERVICE_NAME):$(VERSION)
 
 
@@ -78,3 +79,48 @@ test:
 	CGO_ENABLED=0 go vet ./...
 	staticcheck -checks=all ./...
 	govulncheck ./...
+
+# ==============================================================================
+# Running from within k8s/kind
+
+dev-bill:
+	kind load docker-image $(POSTGRES) --name $(KIND_CLUSTER)
+
+dev-up-local:
+	kind create cluster \
+		--image $(KIND) \
+		--name $(KIND_CLUSTER) \
+		--config zarf/k8s/dev/kind-config.yaml
+
+	kubectl wait --timeout=120s --namespace=local-path-storage --for=condition=Available deployment/local-path-provisioner
+
+	kind load docker-image $(TELEPRESENCE) --name $(KIND_CLUSTER)
+	kind load docker-image $(POSTGRES) --name $(KIND_CLUSTER)
+
+dev-up: dev-up-local
+	telepresence --context=kind-$(KIND_CLUSTER) helm install
+	telepresence --context=kind-$(KIND_CLUSTER) connect
+
+dev-down-local:
+	kind delete cluster --name $(KIND_CLUSTER)
+
+dev-down:
+	telepresence quit -s
+	kind delete cluster --name $(KIND_CLUSTER)
+
+dev-load:
+	kind load docker-image $(SERVICE_IMAGE) --name $(KIND_CLUSTER)
+
+dev-apply:
+	kustomize build zarf/k8s/dev/database | kubectl apply -f -
+	kubectl rollout status --namespace=$(NAMESPACE) --watch --timeout=120s sts/database
+
+	kustomize build zarf/k8s/dev/sales | kubectl apply -f -
+	kubectl wait pods --namespace=$(NAMESPACE) --selector app=$(APP) --for=condition=Ready
+
+# ------------------------------------------------------------------------------
+
+dev-status:
+	kubectl get nodes -o wide
+	kubectl get svc -o wide
+	kubectl get pods -o wide --watch --all-namespaces
