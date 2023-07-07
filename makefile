@@ -67,3 +67,14 @@ run:
 tidy:
 	go mod tidy
 	go mod vendor
+
+# ==============================================================================
+# Running tests within the local computer
+# go install honnef.co/go/tools/cmd/staticcheck@latest
+# go install golang.org/x/vuln/cmd/govulncheck@latest
+
+test:
+	CGO_ENABLED=0 go test -count=1 ./...
+	CGO_ENABLED=0 go vet ./...
+	staticcheck -checks=all ./...
+	govulncheck ./...
