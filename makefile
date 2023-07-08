@@ -128,3 +128,19 @@ dev-restart:
 dev-update: all dev-load dev-restart
 
 dev-update-apply: all dev-load dev-apply
+
+# ------------------------------------------------------------------------------
+
+dev-logs:
+	kubectl logs --namespace=$(NAMESPACE) -l app=$(APP) --all-containers=true -f --tail=100
+
+dev-describe-deployment:
+	kubectl describe deployment --namespace=$(NAMESPACE) $(APP)
+
+dev-describe-sales:
+	kubectl describe pod --namespace=$(NAMESPACE) -l app=$(APP)
+
+dev-logs-init:
+	kubectl logs --namespace=$(NAMESPACE) -l app=$(APP) -f --tail=100 -c init-migrate
+
+# ==============================================================================

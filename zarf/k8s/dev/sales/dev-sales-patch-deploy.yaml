@@ -23,6 +23,19 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
 
+      containers:
+      - name: sales-api
+        resources:
+          requests:
+            cpu: "1000m" # I need access to 1.5 cores on the node.
+            #memory: 500Mi
+          limits:
+            cpu: "2000m" # Execute instructions 150ms/200ms on my 1.5 cores.
+            #memory: 500Mi
+
+# 1 core 100ms = 1000m  100ms/100ms
+# 2 core 200ms = 1500m  100ms/100ms core 1, 50ms/100ms core 2
+
 # Compute Resource Quotas
 #
 # The request value helps K8s determine what node a POD can be run on by making
@@ -87,16 +100,3 @@ spec:
 # for more efficient resource utilization when you start packing multiple PODs
 # onto a given Node. Limits are there to prevent noisy neighbor conditions with
 # colocated PODs.
-
-      containers:
-      - name: sales-api
-        resources:
-          requests:
-            cpu: "1500m" # I need access to 1.5 cores on the node.
-            memory: 500Mi
-          limits:
-            cpu: "1500m" # Execute instructions 150ms/200ms on my 1.5 cores.
-            memory: 500Mi
-
-# 1 core 100ms = 1000m  100ms/100ms
-# 2 core 200ms = 1500m  100ms/100ms core 1, 50ms/100ms core 2
