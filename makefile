@@ -63,7 +63,7 @@ service:
 
 
 run:
-	go run app/services/sales-api/main.go --help
+	go run app/services/sales-api/main.go | go run app/tooling/logfmt/main.go -service=$(SERVICE_NAME)
 
 tidy:
 	go mod tidy
@@ -132,7 +132,7 @@ dev-update-apply: all dev-load dev-apply
 # ------------------------------------------------------------------------------
 
 dev-logs:
-	kubectl logs --namespace=$(NAMESPACE) -l app=$(APP) --all-containers=true -f --tail=100
+	kubectl logs --namespace=$(NAMESPACE) -l app=$(APP) --all-containers=true -f --tail=100 | go run app/tooling/logfmt/main.go -service=$(SERVICE_NAME)
 
 dev-describe-deployment:
 	kubectl describe deployment --namespace=$(NAMESPACE) $(APP)
