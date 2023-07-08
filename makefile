@@ -70,6 +70,15 @@ tidy:
 	go mod vendor
 
 # ==============================================================================
+# Metrics and Tracing
+
+metrics-local:
+	expvarmon -ports="localhost:3499" -vars="build,requests,goroutines,errors,panics,mem:memstats.Alloc"
+
+metrics-view:
+	expvarmon -ports="sales-service.sales-system.svc.cluster.local:3499" -vars="build,requests,goroutines,errors,panics,mem:memstats.Alloc"
+
+# ==============================================================================
 # Running tests within the local computer
 # go install honnef.co/go/tools/cmd/staticcheck@latest
 # go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -97,9 +106,13 @@ dev-up-local:
 	kind load docker-image $(TELEPRESENCE) --name $(KIND_CLUSTER)
 	kind load docker-image $(POSTGRES) --name $(KIND_CLUSTER)
 
-dev-up: dev-up-local
-	telepresence --context=kind-$(KIND_CLUSTER) helm install
+# http://sales-service.sales-system.svc.cluster.local:3499/debug/pprof
+dev-up-tel:
+	telepresence --context=kind-$(KIND_CLUSTER) helm upgrade
 	telepresence --context=kind-$(KIND_CLUSTER) connect
+
+dev-down-tel:
+	telepresence quit -s
 
 dev-down-local:
 	kind delete cluster --name $(KIND_CLUSTER)
