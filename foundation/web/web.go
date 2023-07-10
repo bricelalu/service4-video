@@ -19,28 +19,38 @@ type Handler func(ctx context.Context, w http.ResponseWriter, r *http.Request) e
 type App struct {
 	*httptreemux.ContextMux // Composition by embeding a pointer
 	shutdown                chan os.Signal
+	mw                      []Middleware
 }
 
 // NewApp creates an App value that handle a set of routes for the application.
-func NewApp(shutdown chan os.Signal) *App {
+// This is a zero to many not a one to many. What you get back is already a slice
+func NewApp(shutdown chan os.Signal, mw ...Middleware) *App {
 	return &App{
 		ContextMux: httptreemux.NewContextMux(),
 		shutdown:   shutdown,
+		mw:         mw,
 	}
 }
 
 // Handle sets a handler function for a given HTTP method and path pair
 // to the application server mux.
-func (a *App) Handle(method string, path string, handler Handler) {
-	//handler = wrapMiddleware(mw, handler)
-	//handler = wrapMiddleware(a.mw, handler)
+func (a *App) Handle(method string, path string, handler Handler, mw ...Middleware) {
+	handler = wrapMiddleware(mw, handler)
+	handler = wrapMiddleware(a.mw, handler)
+	// WE CANNOT LOG DIRECTLY HERE, it will break our policies.
+	// We dont want to force anything, it's just the foundation layer here.
 
 	h := func(w http.ResponseWriter, r *http.Request) {
+
+		// INJECT BUSINESS LAYER CODE
+
 		if err := handler(r.Context(), w, r); err != nil {
-			// ANY CODE I WANT
+			// HANDLE ERROR
 			return
 		}
 	}
+
+	// INJECT BUSINESS LAYER CODE
 
 	a.ContextMux.Handle(method, path, h)
 }
