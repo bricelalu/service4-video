@@ -35,11 +35,14 @@ func NewApp(shutdown chan os.Signal, mw ...Middleware) *App {
 // Handle sets a handler function for a given HTTP method and path pair
 // to the application server mux.
 func (a *App) Handle(method string, path string, handler Handler, mw ...Middleware) {
+	// Route Middleware
 	handler = wrapMiddleware(mw, handler)
+
+	// App level Middleware
 	handler = wrapMiddleware(a.mw, handler)
+
 	// WE CANNOT LOG DIRECTLY HERE, it will break our policies.
 	// We dont want to force anything, it's just the foundation layer here.
-
 	h := func(w http.ResponseWriter, r *http.Request) {
 
 		// INJECT BUSINESS LAYER CODE
