@@ -95,7 +95,7 @@ test:
 dev-bill:
 	kind load docker-image $(POSTGRES) --name $(KIND_CLUSTER)
 
-dev-up-local:
+dev-up:
 	kind create cluster \
 		--image $(KIND) \
 		--name $(KIND_CLUSTER) \
@@ -105,6 +105,8 @@ dev-up-local:
 
 	kind load docker-image $(TELEPRESENCE) --name $(KIND_CLUSTER)
 	kind load docker-image $(POSTGRES) --name $(KIND_CLUSTER)
+	telepresence --context=kind-$(KIND_CLUSTER) helm upgrade
+	telepresence --context=kind-$(KIND_CLUSTER) connect
 
 # http://sales-service.sales-system.svc.cluster.local:3499/debug/pprof
 # curl -il http://sales-service.sales-system.svc.cluster.local:3499/debug/vars
