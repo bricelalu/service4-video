@@ -3,6 +3,7 @@ package mid
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/bricelalu/service/foundation/web"
 	"go.uber.org/zap"
@@ -14,17 +15,19 @@ func Logger(log *zap.SugaredLogger) web.Middleware {
 
 		h := func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 
+			v := web.GetValues(ctx)
+
 			path := r.URL.Path
 
 			// LOG HERE - Started
-			log.Infow("request started", "method", r.Method, "path", path,
+			log.Infow("request started", "trace_id", v.TraceID, "method", r.Method, "path", path,
 				"remoteaddr", r.RemoteAddr)
 
 			err := handler(ctx, w, r)
 
 			// LOG HERE - Completed
-			log.Info("request completed", "method", r.Method, "path", path,
-				"remoteaddr", r.RemoteAddr)
+			log.Infow("request completed", "trace_id", v.TraceID, "method", r.Method, "path", path,
+				"remoteaddr", r.RemoteAddr, "statuscode", v.StatusCode, "since", time.Since(v.StartAt))
 
 			return err
 

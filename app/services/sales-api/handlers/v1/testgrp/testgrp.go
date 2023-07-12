@@ -2,11 +2,13 @@ package testgrp
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
+
+	"github.com/bricelalu/service/foundation/web"
 )
 
 func Status(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	status := struct{ Status string }{Status: "ok"}
-	return json.NewEncoder(w).Encode(status)
+
+	return web.Respond(ctx, w, status, http.StatusOK)
 }
