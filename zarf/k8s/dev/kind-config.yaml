@@ -5,8 +5,9 @@ nodes:
   extraPortMappings:
   - containerPort: 3000
     hostPort: 3000
-  - containerPort: 4000
-    hostPort: 4000
+  # Debug port of our service
+  - containerPort: 3499
+    hostPort: 3499
   - containerPort: 8200
     hostPort: 8200
   - containerPort: 5432

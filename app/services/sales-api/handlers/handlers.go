@@ -20,7 +20,7 @@ type APIMuxConfig struct {
 func APIMux(cfg APIMuxConfig) *web.App {
 	// Panics would be at the very end of this food chain
 	// Because it should be the first function that wrap status.
-	app := web.NewApp(cfg.Shutdown, mid.Logger(cfg.Log), mid.Errors(cfg.Log), mid.Panics())
+	app := web.NewApp(cfg.Shutdown, mid.Logger(cfg.Log), mid.Errors(cfg.Log), mid.Metrics(), mid.Panics())
 
 	app.Handle(http.MethodGet, "/status", testgrp.Status)
 

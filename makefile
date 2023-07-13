@@ -164,3 +164,6 @@ dev-logs-init:
 	kubectl logs --namespace=$(NAMESPACE) -l app=$(APP) -f --tail=100 -c init-migrate
 
 # ==============================================================================
+
+test-load:
+	hey -m GET -c 100 -n 10000 http://sales-service.sales-system.svc.cluster.local:3000/status

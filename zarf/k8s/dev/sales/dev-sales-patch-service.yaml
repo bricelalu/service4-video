@@ -15,5 +15,5 @@ spec:
     port: 3000
     targetPort: sales-api
   - name: sales-api-debug
-    port: 3599
+    port: 3499
     targetPort: sales-api-debug
