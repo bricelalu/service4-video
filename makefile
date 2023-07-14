@@ -108,6 +108,9 @@ dev-up:
 	telepresence --context=kind-$(KIND_CLUSTER) helm upgrade
 	telepresence --context=kind-$(KIND_CLUSTER) connect
 
+jwt:
+	go run app/scratch/jwt/main.go
+
 # http://sales-service.sales-system.svc.cluster.local:3499/debug/pprof
 # curl -il http://sales-service.sales-system.svc.cluster.local:3499/debug/vars
 # curl -il http://sales-service.sales-system.svc.cluster.local:3000/status
