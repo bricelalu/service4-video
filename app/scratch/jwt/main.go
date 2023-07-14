@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -27,11 +28,11 @@ func run() error {
 	}
 
 	// Create a file for the private key information in PEM form.
-	privateFile, err := os.Create("private.pem")
-	if err != nil {
-		return fmt.Errorf("creating private file: %w", err)
-	}
-	defer privateFile.Close()
+	// privateFile, err := os.Create("private.pem")
+	// if err != nil {
+	// 	return fmt.Errorf("creating private file: %w", err)
+	// }
+	// defer privateFile.Close()
 
 	// Construct a PEM block for the private key.
 	// privateBlock := pem.Block{
@@ -95,12 +96,40 @@ func run() error {
 	token := jwt.NewWithClaims(method, claims)
 	token.Header["kid"] = "kid1"
 
-	str, err := token.SignedString(privateKey)
+	tokenStr, err := token.SignedString(privateKey)
 	if err != nil {
 		return fmt.Errorf("signing token: %w", err)
 	}
 
-	fmt.Println(str)
+	fmt.Println(tokenStr)
+
+	// =========================================================================
+	// Validate JWT with Public Key
+
+	fmt.Println("================================================")
+
+	parser := jwt.NewParser(jwt.WithValidMethods([]string{"RS256"}))
+
+	keyFunc := func(token *jwt.Token) (interface{}, error) {
+		switch token.Header["kid"] {
+		case "kid1":
+			return &privateKey.PublicKey, nil
+		default:
+			return nil, errors.New("unknown key")
+		}
+	}
+
+	var clm struct {
+		jwt.RegisteredClaims
+		Roles []string
+	}
+
+	if _, err := parser.ParseWithClaims(tokenStr, &clm, keyFunc); err != nil {
+		return fmt.Errorf("parse with claims: %w", err)
+	}
+
+	fmt.Println("signature validated")
+	fmt.Printf("%#v", clm)
 
 	return nil
 }
