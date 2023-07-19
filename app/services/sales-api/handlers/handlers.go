@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/bricelalu/service/app/services/sales-api/handlers/v1/testgrp"
+	"github.com/bricelalu/service/business/web/auth"
 	"github.com/bricelalu/service/business/web/v1/mid"
 	"github.com/bricelalu/service/foundation/web"
 	"go.uber.org/zap"
@@ -14,6 +15,7 @@ import (
 type APIMuxConfig struct {
 	Shutdown chan os.Signal
 	Log      *zap.SugaredLogger
+	Auth     *auth.Auth
 }
 
 // APIMux constructs a http.Handler with all application routes defined.

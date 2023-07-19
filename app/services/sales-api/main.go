@@ -13,6 +13,8 @@ import (
 
 	"github.com/ardanlabs/conf/v3"
 	"github.com/bricelalu/service/app/services/sales-api/handlers"
+	"github.com/bricelalu/service/business/web/auth"
+	"github.com/bricelalu/service/business/web/keystore"
 	"github.com/bricelalu/service/business/web/v1/debug"
 	"github.com/bricelalu/service/foundation/logger"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -61,6 +63,11 @@ func run(log *zap.SugaredLogger) error {
 			APIHost         string        `conf:"default:0.0.0.0:3000"`
 			DebugHost       string        `conf:"default:0.0.0.0:3499"`
 		}
+		Vault struct {
+			Address   string `conf:"http://vault-service.sales-system.svc.cluster.local:8200"`
+			MountPath string `conf:"default:secret"`
+			Token     string `conf:"default:mytoken,mask"`
+		}
 	}{
 		Version: conf.Version{
 			Build: build,
@@ -91,6 +98,25 @@ func run(log *zap.SugaredLogger) error {
 	log.Infow("startup", "config", out)
 
 	// -------------------------------------------------------------------------
+	// Initialize authentication support
+
+	log.Infow("startup", "status", "initializing authentication support")
+	keyStore, err := keystore.NewFS(os.DirFS("/zarf/keys/"))
+	if err != nil {
+		return fmt.Errorf("constructing keystore : %w", err)
+	}
+
+	authCfg := auth.Config{
+		Log:       log,
+		KeyLookup: keyStore,
+	}
+
+	auth, err := auth.New(authCfg)
+	if err != nil {
+		return fmt.Errorf("constructing auth : %w", err)
+	}
+
+	// -------------------------------------------------------------------------
 	// Start Debug Service
 
 	log.Infow("startup", "status", "debug v1 router started", "host", cfg.Web.DebugHost)
@@ -113,6 +139,7 @@ func run(log *zap.SugaredLogger) error {
 	apiMux := handlers.APIMux(handlers.APIMuxConfig{
 		Shutdown: shutdown,
 		Log:      log,
+		Auth:     auth,
 	})
 
 	api := http.Server{
