@@ -63,11 +63,6 @@ func run(log *zap.SugaredLogger) error {
 			APIHost         string        `conf:"default:0.0.0.0:3000"`
 			DebugHost       string        `conf:"default:0.0.0.0:3499"`
 		}
-		Vault struct {
-			Address   string `conf:"http://vault-service.sales-system.svc.cluster.local:8200"`
-			MountPath string `conf:"default:secret"`
-			Token     string `conf:"default:mytoken,mask"`
-		}
 	}{
 		Version: conf.Version{
 			Build: build,
@@ -101,7 +96,7 @@ func run(log *zap.SugaredLogger) error {
 	// Initialize authentication support
 
 	log.Infow("startup", "status", "initializing authentication support")
-	keyStore, err := keystore.NewFS(os.DirFS("/zarf/keys/"))
+	keyStore, err := keystore.New()
 	if err != nil {
 		return fmt.Errorf("constructing keystore : %w", err)
 	}

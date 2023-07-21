@@ -1,12 +1,11 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -21,10 +20,25 @@ func main() {
 }
 
 func run() error {
-	// Generate a new private key.
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+
+	// =========================================================================
+	// Generate Private / Public RSA Key
+
+	const keyFile = "zarf/keys/private_key.pem"
+	file, err := os.Open(keyFile)
 	if err != nil {
-		return fmt.Errorf("generating key: %w", err)
+		return fmt.Errorf("opening key file: %w", err)
+	}
+	defer file.Close()
+
+	privatePEM, err := io.ReadAll(io.LimitReader(file, 1024*1024))
+	if err != nil {
+		return fmt.Errorf("reading auth private key: %w", err)
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privatePEM))
+	if err != nil {
+		return fmt.Errorf("parsing public pem: %w", err)
 	}
 
 	// Create a file for the private key information in PEM form.
@@ -45,8 +59,6 @@ func run() error {
 	// 	return fmt.Errorf("encoding to private file: %w", err)
 	// }
 
-	// =========================================================================
-
 	// Marshal the public key from the private key to PKIX.
 	asn1Bytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
@@ -59,14 +71,17 @@ func run() error {
 		Bytes: asn1Bytes,
 	}
 
-	fmt.Println("================================================")
+	fmt.Print("========================================\n\n")
 
 	// Write the public key to the public key file.
 	if err := pem.Encode(os.Stdout, &publicBlock); err != nil {
 		return fmt.Errorf("encoding to public file: %w", err)
 	}
 
-	fmt.Println("================================================")
+	// =========================================================================
+	// Generate JWT with Signature
+
+	fmt.Print("\n========================================\n\n")
 
 	// Generating a token requires defining a set of claims. In this applications
 	// case, we only care about defining the subject and the user in question and
@@ -86,27 +101,26 @@ func run() error {
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   "123456789",
 			Issuer:    "service project",
-			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(8760 * time.Hour)), // one year
+			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(8760 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		},
-		Roles: []string{"ADMIN"},
+		Roles: []string{"USER"},
 	}
 
-	method := jwt.GetSigningMethod("RS256")
-	token := jwt.NewWithClaims(method, claims)
-	token.Header["kid"] = "kid1"
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS256"), claims)
+	token.Header["kid"] = "private_key"
 
-	tokenStr, err := token.SignedString(privateKey)
+	tokenString, err := token.SignedString(privateKey)
 	if err != nil {
 		return fmt.Errorf("signing token: %w", err)
 	}
 
-	fmt.Println(tokenStr)
+	fmt.Println(tokenString)
 
 	// =========================================================================
 	// Validate JWT with Public Key
 
-	fmt.Println("================================================")
+	fmt.Print("\n========================================\n\n")
 
 	parser := jwt.NewParser(jwt.WithValidMethods([]string{"RS256"}))
 
@@ -123,12 +137,11 @@ func run() error {
 		jwt.RegisteredClaims
 		Roles []string
 	}
-
-	if _, err := parser.ParseWithClaims(tokenStr, &clm, keyFunc); err != nil {
+	if _, err := parser.ParseWithClaims(tokenString, &clm, keyFunc); err != nil {
 		return fmt.Errorf("parse with claims: %w", err)
 	}
 
-	fmt.Println("signature validated")
+	fmt.Print("signature validated\n\n")
 	fmt.Printf("%#v", clm)
 
 	return nil

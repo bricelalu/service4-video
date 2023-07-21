@@ -4,131 +4,79 @@ package keystore
 
 import (
 	"bytes"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
-	"path"
-	"strings"
+	"os"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// PrivateKey represents key information.
-type PrivateKey struct {
-	PK  *rsa.PrivateKey
-	PEM []byte
-}
+const keyFile = "zarf/keys/private_key.pem"
 
-// KeyStore represents an in memory store implementation of the
-// KeyLookup interface for use with the auth package.
 type KeyStore struct {
-	store map[string]PrivateKey
+	privatePEM map[string]string
 }
 
-// New constructs an empty KeyStore ready for use.
-func New() *KeyStore {
-	return &KeyStore{
-		store: make(map[string]PrivateKey),
+func New() (*KeyStore, error) {
+	file, err := os.Open(keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("opening key file: %w", err)
 	}
+	defer file.Close()
+
+	privatePEM, err := io.ReadAll(io.LimitReader(file, 1024*1024))
+	if err != nil {
+		return nil, fmt.Errorf("reading auth private key: %w", err)
+	}
+
+	ks := KeyStore{
+		privatePEM: map[string]string{
+			"private_key": string(privatePEM),
+		},
+	}
+
+	return &ks, nil
 }
 
-// NewMap constructs a KeyStore with an initial set of keys.
-func NewMap(store map[string]PrivateKey) *KeyStore {
-	return &KeyStore{
-		store: store,
+func (k *KeyStore) PrivateKeyPEM(kid string) (pem string, err error) {
+	pem, exist := k.privatePEM[kid]
+	if !exist {
+		return "", errors.New("kid not found")
 	}
+
+	return pem, nil
 }
 
-// NewFS constructs a KeyStore based on a set of PEM files rooted inside
-// of a directory. The name of each PEM file will be used as the key id.
-// Example: keystore.NewFS(os.DirFS("/zarf/keys/"))
-// Example: /zarf/keys/54bb2165-71e1-41a6-af3e-7da4a0e1e2c1.pem
-func NewFS(fsys fs.FS) (*KeyStore, error) {
-	ks := New()
-
-	fn := func(fileName string, dirEntry fs.DirEntry, err error) error {
-		if err != nil {
-			return fmt.Errorf("walkdir failure: %w", err)
-		}
-
-		if dirEntry.IsDir() {
-			return nil
-		}
-
-		if path.Ext(fileName) != ".pem" {
-			return nil
-		}
-
-		file, err := fsys.Open(fileName)
-		if err != nil {
-			return fmt.Errorf("opening key file: %w", err)
-		}
-		defer file.Close()
-
-		// limit PEM file size to 1 megabyte. This should be reasonable for
-		// almost any PEM file and prevents shenanigans like linking the file
-		// to /dev/random or something like that.
-		pem, err := io.ReadAll(io.LimitReader(file, 1024*1024))
-		if err != nil {
-			return fmt.Errorf("reading auth private key: %w", err)
-		}
-
-		pk, err := jwt.ParseRSAPrivateKeyFromPEM(pem)
-		if err != nil {
-			return fmt.Errorf("parsing auth private key: %w", err)
-		}
-
-		key := PrivateKey{
-			PK:  pk,
-			PEM: pem,
-		}
-
-		ks.store[strings.TrimSuffix(dirEntry.Name(), ".pem")] = key
-
-		return nil
+func (k *KeyStore) PublicKeyPEM(kid string) (string, error) {
+	pemStr, exist := k.privatePEM[kid]
+	if !exist {
+		return "", errors.New("kid not found")
 	}
 
-	if err := fs.WalkDir(fsys, ".", fn); err != nil {
-		return nil, fmt.Errorf("walking directory: %w", err)
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(pemStr))
+	if err != nil {
+		return "", err
 	}
 
-	return ks, nil
-}
-
-// PrivateKey searches the key store for a given kid and returns the private key.
-func (ks *KeyStore) PrivateKeyPEM(kid string) (string, error) {
-	privateKey, found := ks.store[kid]
-	if !found {
-		return "", errors.New("kid lookup failed")
-	}
-
-	return string(privateKey.PEM), nil
-}
-
-// PublicKey searches the key store for a given kid and returns the public key.
-func (ks *KeyStore) PublicKeyPEM(kid string) (string, error) {
-	privateKey, found := ks.store[kid]
-	if !found {
-		return "", errors.New("kid lookup failed")
-	}
-
-	asn1Bytes, err := x509.MarshalPKIXPublicKey(&privateKey.PK.PublicKey)
+	asn1Bytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
 		return "", fmt.Errorf("marshaling public key: %w", err)
 	}
 
-	block := pem.Block{
+	// Construct a PEM block for the public key.
+	publicBlock := pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: asn1Bytes,
 	}
 
 	var b bytes.Buffer
-	if err := pem.Encode(&b, &block); err != nil {
-		return "", fmt.Errorf("encoding to private file: %w", err)
+
+	// Write the public key to the public key file.
+	if err := pem.Encode(&b, &publicBlock); err != nil {
+		return "", fmt.Errorf("encoding to public file: %w", err)
 	}
 
 	return b.String(), nil

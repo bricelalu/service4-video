@@ -26,5 +26,7 @@ func APIMux(cfg APIMuxConfig) *web.App {
 
 	app.Handle(http.MethodGet, "/status", testgrp.Status)
 
+	app.Handle(http.MethodGet, "/auth", testgrp.Status, mid.Authenticate(cfg.Auth))
+
 	return app
 }

@@ -92,10 +92,7 @@ test:
 # ==============================================================================
 # Running from within k8s/kind
 
-dev-bill:
-	kind load docker-image $(POSTGRES) --name $(KIND_CLUSTER)
-
-dev-up:
+up:
 	kind create cluster \
 		--image $(KIND) \
 		--name $(KIND_CLUSTER) \
@@ -117,56 +114,59 @@ jwt:
 status:
 	 curl -il http://sales-service.sales-system.svc.cluster.local:3000/status
 
-dev-up-tel:
+auth:
+	 curl -il http://sales-service.sales-system.svc.cluster.local:3000/auth
+
+up-tel:
 	telepresence --context=kind-$(KIND_CLUSTER) helm upgrade
 	telepresence --context=kind-$(KIND_CLUSTER) connect
 
-dev-down-tel:
+down-tel:
 	telepresence quit -s
 
-dev-down-local:
+down-local:
 	kind delete cluster --name $(KIND_CLUSTER)
 
-dev-down:
+down:
 	telepresence quit -s
 	kind delete cluster --name $(KIND_CLUSTER)
 
-dev-load:
+load:
 	kind load docker-image $(SERVICE_IMAGE) --name $(KIND_CLUSTER)
 
-dev-apply:
+apply:
 	kustomize build zarf/k8s/dev/sales | kubectl apply -f -
 	kubectl wait pods --namespace=$(NAMESPACE) --selector app=$(APP) --for=condition=Ready
 
 # ------------------------------------------------------------------------------
 
-dev-status:
+kube-status:
 	kubectl get nodes -o wide
 	kubectl get svc -o wide
 	kubectl get pods -o wide --watch --all-namespaces
 
-dev-restart:
+restart:
 	kubectl rollout restart deployment $(APP) --namespace=$(NAMESPACE)
 
-dev-update-restart: all dev-load dev-restart
+update-restart: all load restart
 
-dev-update-apply: all dev-load dev-apply
+update-apply: all load apply
 
 # ------------------------------------------------------------------------------
 
-dev-logs:
+logs:
 	kubectl logs --namespace=$(NAMESPACE) -l app=$(APP) --all-containers=true -f --tail=100 | go run app/tooling/logfmt/main.go -service=$(SERVICE_NAME)
 
-dev-describe-deployment:
+describe-deployment:
 	kubectl describe deployment --namespace=$(NAMESPACE) $(APP)
 
-dev-describe-sales:
+describe-pod:
 	kubectl describe pod --namespace=$(NAMESPACE) -l app=$(APP)
 
-dev-logs-init:
+logs-init:
 	kubectl logs --namespace=$(NAMESPACE) -l app=$(APP) -f --tail=100 -c init-migrate
 
 # ==============================================================================
 
-test-load:
+load-test:
 	hey -m GET -c 100 -n 10000 http://sales-service.sales-system.svc.cluster.local:3000/status
