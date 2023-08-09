@@ -29,10 +29,10 @@ VAULT           := hashicorp/vault:1.13
 ZIPKIN          := openzipkin/zipkin:2.24
 TELEPRESENCE    := datawire/tel2:2.13.1
 
-KIND_CLUSTER    := ardan-starter-cluster
-NAMESPACE       := sales-system
+KIND_CLUSTER    := bricelabs-cluster
+NAMESPACE       := bricelabs
 APP             := sales
-BASE_IMAGE_NAME := ardanlabs/service
+BASE_IMAGE_NAME := bricelabs/service
 SERVICE_NAME    := sales-api
 #VERSION         := $(shell git rev-parse --short HEAD)
 VERSION			:= 1.0
