@@ -23,7 +23,7 @@ SHELL = $(if $(wildcard $(SHELL_PATH)),/bin/ash,/bin/bash)
 
 GOLANG          := golang:1.20
 ALPINE          := alpine:3.18
-KIND            := kindest/node:v1.27.1
+KIND            := kindest/node:v1.27.3
 POSTGRES        := postgres:15.3
 VAULT           := hashicorp/vault:1.13
 ZIPKIN          := openzipkin/zipkin:2.24
@@ -92,7 +92,9 @@ test:
 # ==============================================================================
 # Running from within k8s/kind
 
-up:
+up: create-kind-cluster update-apply install-istio
+
+create-kind-cluster:
 	kind create cluster \
 		--image $(KIND) \
 		--name $(KIND_CLUSTER) \
@@ -105,6 +107,10 @@ up:
 	telepresence --context=kind-$(KIND_CLUSTER) helm upgrade
 	telepresence --context=kind-$(KIND_CLUSTER) connect
 
+install-istio:
+	istioctl install --set profile=demo -y
+	kubectl label namespace $(NAMESPACE) istio-injection=enabled
+
 jwt:
 	go run app/scratch/jwt/main.go
 
@@ -115,7 +121,7 @@ status:
 	 curl -il http://sales-service.sales-system.svc.cluster.local:3000/status
 
 auth:
-	 curl -il http://sales-service.sales-system.svc.cluster.local:3000/auth
+	 curl -il -H "Authorization: Bearer ${TOKEN}" http://sales-service.sales-system.svc.cluster.local:3000/auth
 
 up-tel:
 	telepresence --context=kind-$(KIND_CLUSTER) helm upgrade
